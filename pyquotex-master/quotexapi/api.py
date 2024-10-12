@@ -122,7 +122,7 @@ class QuotexAPI(object):
     def websocket(self):
         """Property to get websocket.
 
-        :returns: The instance of :class:`WebSocket <websocket.WebSocket>`.
+        :returns: The instance of :class:WebSocket <websocket.WebSocket>.
         """
         return self.websocket_client.wss
 
@@ -172,32 +172,32 @@ class QuotexAPI(object):
     @property
     def logout(self):
         """Property for get Quotex http login resource.
-        :returns: The instance of :class:`Login
-            <quotexapi.http.login.Login>`.
+        :returns: The instance of :class:Login
+            <quotexapi.http.login.Login>.
         """
         return Logout(self)
 
     @property
     def login(self):
         """Property for get Quotex http login resource.
-        :returns: The instance of :class:`Login
-            <quotexapi.http.login.Login>`.
+        :returns: The instance of :class:Login
+            <quotexapi.http.login.Login>.
         """
         return Login(self)
 
     @property
     def ssid(self):
         """Property for get Quotex websocket ssid channel.
-        :returns: The instance of :class:`Ssid
-            <Quotex.ws.channels.ssid.Ssid>`.
+        :returns: The instance of :class:Ssid
+            <Quotex.ws.channels.ssid.Ssid>.
         """
         return Ssid(self)
 
     @property
     def buy(self):
         """Property for get Quotex websocket ssid channel.
-        :returns: The instance of :class:`Buy
-            <Quotex.ws.channels.buy.Buy>`.
+        :returns: The instance of :class:Buy
+            <Quotex.ws.channels.buy.Buy>.
         """
         return Buy(self)
     
@@ -210,8 +210,8 @@ class QuotexAPI(object):
     def get_candles(self):
         """Property for get Quotex websocket candles channel.
 
-        :returns: The instance of :class:`GetCandles
-            <quotexapi.ws.channels.candles.GetCandles>`.
+        :returns: The instance of :class:GetCandles
+            <quotexapi.ws.channels.candles.GetCandles>.
         """
         return GetCandles(self)
 
@@ -219,12 +219,12 @@ class QuotexAPI(object):
         """Send http request to Quotex server.
 
         :param resource: The instance of
-        :class:`Resource <quotexapi.http.resource.Resource>`.
+        :class:Resource <quotexapi.http.resource.Resource>.
         :param str method: The http request method.
         :param dict data: (optional) The http request data.
         :param dict params: (optional) The http request params.
         :param dict headers: (optional) The http request headers.
-        :returns: The instance of :class:`Response <requests.Response>`.
+        :returns: The instance of :class:Response <requests.Response>.
         """
         url = resource.url
         logger.debug(url)

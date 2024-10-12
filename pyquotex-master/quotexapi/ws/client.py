@@ -4,6 +4,7 @@ import time
 import logging
 import websocket
 from .. import global_value
+from quotexapi.stable_api import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class WebsocketClient(object):
 
     def on_message(self, wss, message):
         """Method to process websocket messages."""
+        logger.debug(f"Mensaje recibido del WebSocket: {message}")
         global_value.ssl_Mutual_exclusion = True
         current_time = time.localtime()
         if current_time.tm_sec in [0, 20, 40]:
@@ -136,6 +138,11 @@ class WebsocketClient(object):
                         }
                     }
                     self.api.realtime_sentiment[i[0]] = result
+            if 'buy' in message:
+                response_data = json.loads(message)
+                request_id = response_data.get('request_id')
+                if request_id:
+                    self.buy_successful[request_id] = response_data
         except:
             pass
         global_value.ssl_Mutual_exclusion = False
@@ -161,10 +168,11 @@ class WebsocketClient(object):
         self.wss.send('42["chart_notification/get"]')
         self.wss.send('42["tick"]')
 
-    def on_close(self, wss, close_status_code, close_msg):
-        """Method to process websocket close."""
-        logger.info("Websocket connection closed.")
+    def on_close(self, _wss, close_status_code, close_msg):
+        """Método para procesar el cierre del WebSocket."""
+        logger.warning(f"Conexión WebSocket cerrada: Código {close_status_code}, Mensaje: {close_msg}")
         global_value.check_websocket_if_connect = 0
+        asyncio.create_task(self.api.reconnect())
 
     def on_ping(self, wss, ping_msg):
         pass
