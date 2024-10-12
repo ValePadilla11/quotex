@@ -14,7 +14,6 @@ if sys.version_info < (3, 9):
             return self[len(prefix) :]
         else:
             return self[:]
-
 else:
 
     def removesuffix(self, suffix):

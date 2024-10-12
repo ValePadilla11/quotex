@@ -1,15 +1,14 @@
 """Utilities for extracting common archive formats"""
 
-import contextlib
-import os
-import posixpath
-import shutil
-import tarfile
 import zipfile
+import tarfile
+import os
+import shutil
+import posixpath
+import contextlib
+from distutils.errors import DistutilsError
 
 from ._path import ensure_directory
-
-from distutils.errors import DistutilsError
 
 __all__ = [
     "unpack_archive",

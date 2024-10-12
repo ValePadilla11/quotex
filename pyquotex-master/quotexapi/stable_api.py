@@ -274,7 +274,7 @@ class Quotex(object):
 
     async def check_win(self, id_number):
         await self.start_remaing_time()
-        timeout = 30  # Tiempo máximo de espera en segundos
+        timeout = 400  # Tiempo máximo de espera en segundos
         start_time = time.time()
         while True:
             if time.time() - start_time > timeout:

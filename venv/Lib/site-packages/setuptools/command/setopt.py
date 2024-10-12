@@ -1,13 +1,12 @@
-import configparser
+from distutils.util import convert_path
+from distutils import log
+from distutils.errors import DistutilsOptionError
+import distutils
 import os
+import configparser
 
 from .. import Command
 from ..unicode_utils import _cfg_read_utf8_with_fallback
-
-import distutils
-from distutils import log
-from distutils.errors import DistutilsOptionError
-from distutils.util import convert_path
 
 __all__ = ['config_file', 'edit_config', 'option_base', 'setopt']
 

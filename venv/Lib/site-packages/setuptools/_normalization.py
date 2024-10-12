@@ -5,7 +5,7 @@ and core metadata
 
 import re
 
-import packaging
+from .extern import packaging
 
 # https://packaging.python.org/en/latest/specifications/core-metadata/#name
 _VALID_NAME = re.compile(r"^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$", re.I)
@@ -54,7 +54,7 @@ def safe_version(version: str) -> str:
     >>> safe_version("ubuntu lts")
     Traceback (most recent call last):
     ...
-    packaging.version.InvalidVersion: Invalid version: 'ubuntu.lts'
+    setuptools.extern.packaging.version.InvalidVersion: Invalid version: 'ubuntu.lts'
     """
     v = version.replace(' ', '.')
     try:

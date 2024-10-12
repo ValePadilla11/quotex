@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import shutil
 import sys
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from _typeshed import ExcInfo, StrOrBytesPath
-    from typing_extensions import TypeAlias
+    from _typeshed import StrOrBytesPath, ExcInfo
 
 # Same as shutil._OnExcCallback from typeshed
-_OnExcCallback: TypeAlias = Callable[[Callable[..., Any], str, BaseException], object]
+_OnExcCallback = Callable[[Callable[..., Any], str, BaseException], object]
 
 
 def shutil_rmtree(

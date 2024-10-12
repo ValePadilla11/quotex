@@ -9,8 +9,7 @@ import time
 from io import StringIO, TextIOWrapper
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
-from wheel.cli import WheelError
-from wheel.util import log, urlsafe_b64decode, urlsafe_b64encode
+from .util import log, urlsafe_b64decode, urlsafe_b64encode
 
 # Non-greedy matching of an optional build number may be too clever (more
 # invalid wheel filenames will match). Separate regex for .dist-info?
@@ -194,3 +193,7 @@ class WheelFile(ZipFile):
             self.writestr(self.record_path, data.getvalue())
 
         ZipFile.close(self)
+
+
+class WheelError(Exception):
+    pass

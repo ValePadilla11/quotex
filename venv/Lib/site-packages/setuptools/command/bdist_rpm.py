@@ -1,7 +1,6 @@
-from ..dist import Distribution
-from ..warnings import SetuptoolsDeprecationWarning
-
 import distutils.command.bdist_rpm as orig
+
+from ..warnings import SetuptoolsDeprecationWarning
 
 
 class bdist_rpm(orig.bdist_rpm):
@@ -12,8 +11,6 @@ class bdist_rpm(orig.bdist_rpm):
     2. Always run 'install' using --single-version-externally-managed to
        disable eggs in RPM distributions.
     """
-
-    distribution: Distribution  # override distutils.dist.Distribution with setuptools.dist.Distribution
 
     def run(self):
         SetuptoolsDeprecationWarning.emit(

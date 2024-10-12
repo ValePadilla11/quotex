@@ -10,11 +10,15 @@ import os
 import pathlib
 import re
 import sys
-import warnings
 from collections.abc import Iterable
 from email import message_from_file
 
-from packaging.utils import canonicalize_name, canonicalize_version
+from ._vendor.packaging.utils import canonicalize_name, canonicalize_version
+
+try:
+    import warnings
+except ImportError:
+    warnings = None
 
 from ._log import log
 from .debug import DEBUG
@@ -245,7 +249,10 @@ Common commands: (see '--help-commands' for more)
                 attrs['license'] = attrs['licence']
                 del attrs['licence']
                 msg = "'licence' distribution option is deprecated; use 'license'"
-                warnings.warn(msg)
+                if warnings is not None:
+                    warnings.warn(msg)
+                else:
+                    sys.stderr.write(msg + "\n")
 
             # Now work on the rest of the attributes.  Any attribute that's
             # not already defined is invalid!
@@ -347,8 +354,7 @@ Common commands: (see '--help-commands' for more)
         prefix = '.' * (os.name == 'posix')
         filename = prefix + 'pydistutils.cfg'
         if self.want_user_cfg:
-            with contextlib.suppress(RuntimeError):
-                yield pathlib.Path('~').expanduser() / filename
+            yield pathlib.Path('~').expanduser() / filename
 
         # All platforms support local setup.cfg
         yield pathlib.Path('setup.cfg')
@@ -652,7 +658,7 @@ Common commands: (see '--help-commands' for more)
             )
             print()
 
-        for command in commands:
+        for command in self.commands:
             if isinstance(command, type) and issubclass(command, Command):
                 klass = command
             else:
@@ -735,9 +741,14 @@ Common commands: (see '--help-commands' for more)
         import distutils.command
 
         std_commands = distutils.command.__all__
-        is_std = set(std_commands)
+        is_std = set()
+        for cmd in std_commands:
+            is_std.add(cmd)
 
-        extra_commands = [cmd for cmd in self.cmdclass.keys() if cmd not in is_std]
+        extra_commands = []
+        for cmd in self.cmdclass.keys():
+            if cmd not in is_std:
+                extra_commands.append(cmd)
 
         max_length = 0
         for cmd in std_commands + extra_commands:
@@ -761,9 +772,14 @@ Common commands: (see '--help-commands' for more)
         import distutils.command
 
         std_commands = distutils.command.__all__
-        is_std = set(std_commands)
+        is_std = set()
+        for cmd in std_commands:
+            is_std.add(cmd)
 
-        extra_commands = [cmd for cmd in self.cmdclass.keys() if cmd not in is_std]
+        extra_commands = []
+        for cmd in self.cmdclass.keys():
+            if cmd not in is_std:
+                extra_commands.append(cmd)
 
         rv = []
         for cmd in std_commands + extra_commands:
@@ -1285,4 +1301,7 @@ def fix_help_options(options):
     """Convert a 4-tuple 'help_options' list as found in various command
     classes to the 3-tuple form required by FancyGetopt.
     """
-    return [opt[0:3] for opt in options]
+    new_options = []
+    for help_tuple in options:
+        new_options.append(help_tuple[0:3])
+    return new_options

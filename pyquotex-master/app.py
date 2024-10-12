@@ -3,10 +3,10 @@ import sys
 import asyncio
 import datetime
 import logging
+import time
 from telethon import TelegramClient, events
 from quotexapi.stable_api import Quotex
 from quotexapi.stable_api import asrun
-from asyncio import Queue
 
 # Configuración del logger
 logging.basicConfig(
@@ -27,39 +27,18 @@ api_id = '23334305'
 api_hash = '695c8ec0bd2a3f13a53bcd0028a110b4'
 phone = '+573006240800'
 
-operation_queue = Queue()
-
 # Parámetros de configuración
 initial_amount = 1  # Monto inicial a invertir
 max_retries = 2     # Número máximo de repeticiones (gales)
 
 async def main():
     try:
-        # Cliente de Quotex
-        quotex_client = Quotex(
-            email=email,
-            password=password,
-            email_pass=email_pass,
-            user_data_dir=user_data_dir
-        )
-
-        check_connect, message = await quotex_client.connect()
-        if not check_connect:
-            logging.error(f"Error al conectar con Quotex: {message}")
-            return
-
-        quotex_client.change_account("DEMO")
-        logging.info("Conexión exitosa con la cuenta DEMO de Quotex")
-
         # Cliente de Telegram
         telegram_client = TelegramClient('session_name', api_id, api_hash)
         await telegram_client.start()
 
         # Obtener el canal de Telegram
-        channel = await telegram_client.get_entity('https://t.me/EliteColombia123_bot')
-
-        # Iniciar el trabajador que procesará las operaciones
-        asyncio.create_task(operation_worker(quotex_client))
+        channel = await telegram_client.get_entity('https://t.me/+BgSI26oXfKs1MTNh')
 
         # Handler para nuevos mensajes
         @telegram_client.on(events.NewMessage(chats=channel))
@@ -69,7 +48,7 @@ async def main():
             if parsed_signal:
                 asset, direction, scheduled_time_str, duration, timezone_offset = parsed_signal
                 wait_time = calculate_wait_time(scheduled_time_str, timezone_offset)
-                if wait_time > 0:
+                if wait_time >= 0:
                     logging.info(f"Operación programada en {wait_time} segundos para el activo {asset}.")
                     operation = {
                         'asset': asset,
@@ -78,70 +57,23 @@ async def main():
                         'duration_minutes': duration,
                         'wait_time': wait_time
                     }
-                    await operation_queue.put(operation)
-                    logging.info(f"Operación encolada: {operation}")
+                    # Iniciar una nueva tarea para ejecutar la operación
+                    asyncio.create_task(execute_trade(operation))
+                    logging.info(f"Operación programada: {operation}")
                 else:
                     logging.warning("La hora de la operación ya pasó. Señal ignorada.")
             else:
                 logging.warning("No se pudo interpretar la señal correctamente.")
 
+        logging.info("Escuchando mensajes en el canal de Telegram...")
+        await telegram_client.run_until_disconnected()
+
     except Exception as e:
         logging.error(f"Ocurrió una excepción en main: {e}")
-    finally:
-        # Cerrar el cliente de Quotex al finalizar
-        if quotex_client:
-            quotex_client.close()
-
-async def operation_worker(quotex_client):
-    while True:
-        operation = await operation_queue.get()
-        try:
-            await execute_trade(quotex_client, **operation)
-        except Exception as e:
-            logging.error(f"Error al ejecutar la operación: {e}")
-        finally:
-            operation_queue.task_done()
-
-async def ensure_connected(quotex_client):
-    if not quotex_client.check_connect():
-        logging.warning("Conexión con Quotex no está activa. Intentando reconexión...")
-        # Cerrar la conexión existente
-        quotex_client.close()
-
-        # Intentar reconectar hasta 3 veces
-        max_reconnect_attempts = 3
-        for attempt in range(1, max_reconnect_attempts + 1):
-            logging.info(f"Intento de reconexión #{attempt}...")
-            try:
-                new_quotex_client = Quotex(
-                    email=email,
-                    password=password,
-                    email_pass=email_pass,
-                    user_data_dir=user_data_dir
-                )
-                check_connect, message = await new_quotex_client.connect()
-                if check_connect:
-                    logging.info("Reconexión exitosa con Quotex.")
-                    new_quotex_client.change_account("DEMO")
-                    return new_quotex_client
-                else:
-                    logging.error(f"No se pudo reconectar con Quotex: {message}")
-            except Exception as e:
-                logging.error(f"Error al intentar reconectar: {e}")
-            
-            # Esperar un tiempo antes de intentar de nuevo
-            await asyncio.sleep(5)  # Espera de 5 segundos entre intentos
-
-        logging.error("No se pudo reconectar después de varios intentos. Abortando operación.")
-        return None  # O tomar alguna otra acción apropiada
-
-    return quotex_client
-
 
 def parse_signal(message):
     try:
         # Lógica para extraer la señal del mensaje
-        # Similar a la versión original, pero mejorando la validación
         lines = message.strip().split('\n')
         asset, direction, scheduled_time_str, duration, timezone_offset = None, None, None, None, None
 
@@ -160,22 +92,23 @@ def parse_signal(message):
 
         if not all([asset, direction, scheduled_time_str, duration, timezone_offset]):
             logging.warning("Faltan datos en la señal. No se puede proceder.")
-            return None, None, None, None, None
+            return None
 
         return asset, direction, scheduled_time_str, duration, timezone_offset
 
     except Exception as e:
         logging.error(f"Error al analizar la señal: {e}")
-        return None, None, None, None, None
+        return None
 
 def calculate_wait_time(scheduled_time_str, timezone_offset):
-    # Esta función es igual a la original, pero con logs adicionales para posibles errores
     try:
         operation_timezone = datetime.timezone(datetime.timedelta(hours=timezone_offset))
         now_operation_tz = datetime.datetime.now(tz=operation_timezone)
         today = now_operation_tz.date()
         operation_time = datetime.datetime.strptime(scheduled_time_str, '%H:%M').replace(
             year=today.year, month=today.month, day=today.day, tzinfo=operation_timezone)
+        
+        operation_time -= datetime.timedelta(seconds=5)
 
         wait_time = (operation_time - now_operation_tz).total_seconds()
 
@@ -189,53 +122,88 @@ def calculate_wait_time(scheduled_time_str, timezone_offset):
         logging.error(f"Error al calcular el tiempo de espera: {e}")
         return -1
 
-async def execute_trade(quotex_client, asset, direction, scheduled_time_str, duration_minutes):
-    # Aquí se mantiene la lógica principal, pero con logs mejorados
+async def execute_trade(operation):
     try:
+        asset = operation['asset']
+        direction = operation['direction']
+        scheduled_time_str = operation['scheduled_time_str']
+        duration_minutes = operation['duration_minutes']
+        wait_time = operation['wait_time']
+
+        # Esperar hasta la hora programada
+        await asyncio.sleep(wait_time)
+
         amount = initial_amount
         retries = 0
         duration = duration_minutes * 60
+        max_retries_local = max_retries  # Usar una variable local para los reintentos
 
-        while retries <= max_retries:
-            logging.info(f"Intento {retries + 1}: Operando {asset} en dirección {direction.upper()} con monto {amount}.")
-            quotex_client = await ensure_connected(quotex_client)
-            if not quotex_client:
-                logging.error("Fallo en la reconexión con Quotex.")
-                break
+        # Generar un identificador único para la operación
+        operation_id = f"{asset}_{scheduled_time_str}_{int(time.time())}"
+        logging.info(f"Iniciando operación {operation_id}")
+
+        # Crear una nueva instancia de Quotex para esta operación
+        quotex_client = Quotex(
+            email=email,
+            password=password,
+            email_pass=email_pass,
+            user_data_dir=user_data_dir
+        )
+
+        check_connect, message = await quotex_client.connect()
+        if not check_connect:
+            logging.error(f"Error al conectar con Quotex: {message}")
+            return
+
+        quotex_client.change_account("DEMO")
+        logging.info("Conexión exitosa con la cuenta DEMO de Quotex")
+
+        while retries <= max_retries_local:
+            logging.info(f"Operación {operation_id}, Intento {retries + 1}: Operando {asset} en dirección {direction.upper()} con monto {amount}.")
+            if not quotex_client.check_connect():
+                logging.warning("Conexión con Quotex no está activa. Intentando reconexión...")
+                check_connect, message = await quotex_client.connect()
+                if not check_connect:
+                    logging.error(f"No se pudo reconectar con Quotex: {message}")
+                    break
+                quotex_client.change_account("DEMO")
 
             asset_name, asset_data = await quotex_client.get_available_asset(asset, force_open=True)
-            if asset_data[2]:
+            if asset_data and asset_data[2]:
                 status, buy_info = await quotex_client.buy(amount, asset_name, direction, duration)
                 if status:
                     position_id = buy_info.get('id')
                     result = await wait_for_result(quotex_client, position_id)
                     if result == 'win':
-                        logging.info(f"Operación {position_id} ganada.")
+                        logging.info(f"Operación {operation_id} ganada en el intento {retries + 1}.")
                         break
                     elif result == 'loss':
                         retries += 1
-                        amount *= 3
-                        logging.warning(f"Operación perdida. Intentando nuevamente con monto {amount}.")
+                        amount *= 3  # Multiplicar el monto según la estrategia de martingala
+                        logging.warning(f"Operación {operation_id} perdida en el intento {retries}. Intentando nuevamente con monto {amount}.")
                     else:
-                        logging.error("Resultado desconocido de la operación.")
+                        logging.error(f"Resultado desconocido de la operación {operation_id}.")
                         break
                 else:
-                    logging.error(f"Operación fallida para {asset}. Estado negativo recibido.")
+                    logging.error(f"Operación {operation_id} fallida para {asset}. Estado negativo recibido.")
                     break
             else:
-                logging.warning(f"El activo {asset} está cerrado.")
+                logging.warning(f"El activo {asset} está cerrado o no disponible para la operación {operation_id}.")
                 break
+
+        # Cerrar la conexión de Quotex para esta operación
+        quotex_client.close()
+
     except Exception as e:
-        logging.error(f"Error al ejecutar la operación: {e}")
+        logging.error(f"Error al ejecutar la operación {operation_id}: {e}")
 
 async def wait_for_result(quotex_client, position_id):
     try:
         result = await quotex_client.check_win(position_id)
         return 'win' if result is True else 'loss' if result is False else 'unknown'
     except Exception as e:
-        logging.error(f"Error al obtener el resultado de la operación: {e}")
+        logging.error(f"Error al obtener el resultado de la operación {position_id}: {e}")
         return 'unknown'
-
 
 if __name__ == "__main__":
     try:
@@ -243,4 +211,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.info("¡Operación abortada por el usuario!")
         sys.exit(0)
-
